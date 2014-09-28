@@ -302,7 +302,7 @@ size_t lzvn_decode(void * decompressedData, size_t decompressedSize, void * comp
 						
 							jmpTo = LZVN_11;										// jmp	Llzvn_l11
 							break;
-#if LZVN_DEBUG
+#if DEBUG_STATE_ENABLED
 					default:printf("default() caseTableIndex[%d]\n", (uint8_t)caseTableIndex);
 #endif
 				}																	// switch (caseTable[caseTableIndex])
