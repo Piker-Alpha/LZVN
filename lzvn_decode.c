@@ -549,3 +549,4 @@ size_t lzvn_decode(void * decompressedData, size_t decompressedSize, void * comp
 
 	return 0;
 }
+
