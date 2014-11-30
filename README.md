@@ -43,8 +43,8 @@ Note: The executable will be copied to: /usr/local/bin
 Usage
 -----
 
-``` ./lzvn <uncompressed filename> <compressed filename>
-
+```
+./lzvn <uncompressed filename> <compressed filename>
 ```
 
 
