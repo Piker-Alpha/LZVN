@@ -7,8 +7,8 @@ _lzvn_decode:
 	movq	%rsp, %rbp
 	pushq	%rbx
 	pushq	%r12
-#	leaq	Lzvn_decode.opcode_table(%rip), %rbx
-	leaq	0x2f2(%rip), %rbx
+	leaq	Lzvn_decode.opcode_table(%rip), %rbx
+#	leaq	0x2f2(%rip), %rbx
 	xorq	%rax, %rax
 	xorq	%r12, %r12
 	subq	$8, %rsi
@@ -234,7 +234,7 @@ L_0x2b7:
 	ret
 
 .data
-#Lzvn_decode.opcode_table:
+Lzvn_decode.opcode_table:
 .quad L_0x056
 .quad L_0x056
 .quad L_0x056

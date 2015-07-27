@@ -17,7 +17,7 @@ ASFLAGS=-arch x86_64
 ARFLAGS=cru
 CFLAGS=-arch x86_64 -O2
 
-all: lzvn
+all: clean lzvn
 
 .s.o:
 	$(AS) $(ASFLAGS) -o $@ $<
@@ -25,15 +25,16 @@ all: lzvn
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@
 
-libFastCompression.a: lzvn_encode.o
-	$(AR) $(ARFLAGS) $@ lzvn_encode.o
+libFastCompression.a: lzvn_encode.o lzvn_decode.o
+	$(AR) $(ARFLAGS) $@ lzvn_encode.o lzvn_decode.o
 	$(RANLIB) libFastCompression.a
 
 lzvn: lzvn.o libFastCompression.a
 	$(CC) $(CFLAGS) -o $@ lzvn.o -L. -lFastCompression
 
 clean:
-	rm -f *.o lzvn
+	clear
+	rm -f *.o *.a lzvn
 
 install: lzvn.h
 	$(INSTALL) lzvn $(PREFIX)/bin
