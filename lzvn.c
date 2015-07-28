@@ -156,7 +156,7 @@ int main(int argc, const char * argv[])
 										}
 										else
 										{
-											printf("OK\n");
+											printf("OK (0x%08x)\n", OSSwapInt32(prelinkHeader->adler32));
 										}
 									}
 
@@ -200,7 +200,7 @@ int main(int argc, const char * argv[])
 			{
 				fseek(fp, 0, SEEK_END);
 				fileLength = ftell(fp);
-				printf("fileLength: %ld\n", fileLength);
+				printf("fileLength...: %ld/0x%08lx - %s\n", fileLength, fileLength, argv[1]);
 				fseek(fp, 0, SEEK_SET);
 
 				fileBuffer = malloc(fileLength);
@@ -217,18 +217,16 @@ int main(int argc, const char * argv[])
 					fclose(fp);
 
 					size_t workSpaceSize = lzvn_encode_work_size();
-					printf("workSpaceSize: %ld \n", workSpaceSize);
-
 					void * workSpace = malloc(workSpaceSize);
 
 					if (workSpace == NULL)
 					{
-						printf("ERROR: Failed to allocate workspace... exiting\nAborted!\n\n");
+						printf("\nERROR: Failed to allocate workspace... exiting\nAborted!\n\n");
 						exit(-1);
 					}
 					else
 					{
-						printf("workSpace declared\n");
+						printf("workSpaceSize: %ld/0x%08lx\n", workSpaceSize, workSpaceSize);
 
 						if (fileLength > workSpaceSize)
 						{
@@ -244,8 +242,10 @@ int main(int argc, const char * argv[])
 						}
 						else
 						{
+							printf("adler32......: 0x%08x\n", local_adler32(fileBuffer, fileLength));
+
 							size_t outSize = lzvn_encode(workSpaceBuffer, workSpaceSize, (u_int8_t *)fileBuffer, (size_t)fileLength, workSpace);
-							printf("outSize: %ld\n", outSize);
+							printf("outSize......: %ld/0x%08lx\n", outSize, outSize);
 
 							free(workSpace);
 
@@ -253,7 +253,7 @@ int main(int argc, const char * argv[])
 							{
 								bufend = workSpaceBuffer + outSize;
 								compsize = bufend - workSpaceBuffer;
-								printf("compsize: %ld\n", compsize);
+								printf("compsize.....: %ld/0x%08lx\n", compsize, compsize);
 
 								fp = fopen (argv[2], "wb");
 								fwrite(workSpaceBuffer, outSize, 1, fp);
