@@ -8,9 +8,12 @@
  *			- Support for lzvn_decode() added (Pike R. Alpha, November 2014).
  *			- Support for prelinkedkernels added (Pike R. Alpha, December 2014).
  *			- Debug output data added (Pike R. Alpha, July 2015).
+ *			- Prelinkedkerel check added (Pike R. Alpha, August 2015).
+ *			- Mach header injection for prelinkedkernels added (Pike R. Alpha, August 2015).
  */
 
 #include "lzvn.h"
+
 
 //==============================================================================
 
@@ -32,7 +35,7 @@ int main(int argc, const char * argv[])
 	unsigned long file_adler32				= 0;
 	unsigned long buffer_adler32			= 0;
 
-	size_t compsize							= 0;
+	size_t compressedSize							= 0;
 	size_t workSpaceSize					= 0;
 
 	if (argc < 3 || argc > 4)
@@ -109,8 +112,19 @@ int main(int argc, const char * argv[])
 					}
 					else
 					{
-						// printf("Getting WorkSpaceSize\n");
-						workSpaceSize = lzvn_encode_work_size();
+						prelinkHeader = (PrelinkedKernelHeader *)(unsigned char *)fileBuffer;
+						
+						if (prelinkHeader->signature == OSSwapInt32('comp') && prelinkHeader->compressType == OSSwapInt32('lzvn'))
+						{
+							fileBuffer = (unsigned char *)prelinkHeader + sizeof(PrelinkedKernelHeader);
+							workSpaceSize = OSSwapInt32(prelinkHeader->uncompressedSize);
+							fileLength = OSSwapInt32(prelinkHeader->compressedSize);
+						}
+						else
+						{
+							// printf("Getting WorkSpaceSize\n");
+							workSpaceSize = lzvn_encode_work_size();
+						}
 					}
 
 
@@ -137,9 +151,9 @@ int main(int argc, const char * argv[])
 
 							/* if (workSpaceSize > 0x80000)
 							{ */
-								compsize = lzvn_decode(workSpaceBuffer, workSpaceSize, fileBuffer, fileLength);
+								compressedSize = lzvn_decode(workSpaceBuffer, workSpaceSize, fileBuffer, fileLength);
 
-								if (compsize > 0)
+								if (compressedSize > 0)
 								{
 									// Are we unpacking a prelinkerkernel?
 									if (prelinkHeader)
@@ -160,15 +174,15 @@ int main(int argc, const char * argv[])
 										}
 									}
 
-									fwrite(workSpaceBuffer, 1, compsize, fp);
+									fwrite(workSpaceBuffer, 1, compressedSize, fp);
 								}
 							/* }
 							else
 							{
-								while ((compsize = lzvn_decode(workSpaceBuffer, workSpaceSize, fileBuffer, fileLength)) > 0)
+								while ((compressedSize = lzvn_decode(workSpaceBuffer, workSpaceSize, fileBuffer, fileLength)) > 0)
 								{
-									printf("compsize: %ld\n", compsize);
-									fwrite(workSpaceBuffer, 1, compsize, fp);
+									printf("compressedSize: %ld\n", compressedSize);
+									fwrite(workSpaceBuffer, 1, compressedSize, fp);
 									fileBuffer += workSpaceSize;
 									byteshandled += workSpaceSize;
 								}
@@ -242,7 +256,9 @@ int main(int argc, const char * argv[])
 						}
 						else
 						{
-							printf("adler32......: 0x%08x\n", local_adler32(fileBuffer, fileLength));
+							file_adler32 = local_adler32(fileBuffer, fileLength);
+							printf("adler32......: 0x%08lx\n", file_adler32);
+
 
 							size_t outSize = lzvn_encode(workSpaceBuffer, workSpaceSize, (u_int8_t *)fileBuffer, (size_t)fileLength, workSpace);
 							printf("outSize......: %ld/0x%08lx\n", outSize, outSize);
@@ -252,12 +268,35 @@ int main(int argc, const char * argv[])
 							if (outSize != 0)
 							{
 								bufend = workSpaceBuffer + outSize;
-								compsize = bufend - workSpaceBuffer;
-								printf("compsize.....: %ld/0x%08lx\n", compsize, compsize);
+								compressedSize = bufend - workSpaceBuffer;
+								printf("compressedSize.....: %ld/0x%08lx\n", compressedSize, compressedSize);
 
 								fp = fopen (argv[2], "wb");
+
+								// Do we need to inject the mach header?
+								if (is_prelinkedkernel(fileBuffer))
+								{
+									printf("Fixing file header for prelinkedkernel ...\n");
+
+									// Inject arch offset into the header.
+									gFileHeader[5] = OSSwapInt32(sizeof(gFileHeader) + outSize - 28);
+									// Inject the value of file_adler32 into the header.
+									gFileHeader[9] = OSSwapInt32(file_adler32);
+									// Inject the uncompressed size into the header.
+									gFileHeader[10] = OSSwapInt32(fileLength);
+									// Inject the compressed size into the header.
+									gFileHeader[11] = OSSwapInt32(compressedSize);
+
+									printf("Writing fixed up file header ...\n");
+
+									fwrite(gFileHeader, (sizeof(gFileHeader) / sizeof(u_int32_t)), 4, fp);
+								}
+
+								printf("Writing workspace buffer ...\n");
+
 								fwrite(workSpaceBuffer, outSize, 1, fp);
 								fclose(fp);
+								printf("Done.\n");
 							}
 						}
 
