@@ -10,6 +10,7 @@
  *			- Debug output data added (Pike R. Alpha, July 2015).
  *			- Prelinkedkerel check added (Pike R. Alpha, August 2015).
  *			- Mach header injection for prelinkedkernels added (Pike R. Alpha, August 2015).
+ *			- Extract kernel option added (Pike R. Alpha, August 2015).
  */
 
 #include "lzvn.h"
@@ -42,6 +43,7 @@ int main(int argc, const char * argv[])
 	{
 		printf("Usage (encode): %s lzvn <infile> <outfile>\n", argv[0]);
 		printf("Usage (decode): %s lzvn -d <infile> <outfile>\n", argv[0]);
+		printf("Usage (decode): %s lzvn -d <path/prelinkedkernel> kernel\n", argv[0]);
 		exit(-1);
 	}
 	else
@@ -147,8 +149,6 @@ int main(int argc, const char * argv[])
 						}
 						else
 						{
-							printf("Decoding data ...\nWriting data to: %s\n", argv[3]);
-
 							/* if (workSpaceSize > 0x80000)
 							{ */
 								compressedSize = lzvn_decode(workSpaceBuffer, workSpaceSize, fileBuffer, fileLength);
@@ -156,7 +156,7 @@ int main(int argc, const char * argv[])
 								if (compressedSize > 0)
 								{
 									// Are we unpacking a prelinkerkernel?
-									if (prelinkHeader)
+									if (is_prelinkedkernel(workSpaceBuffer))
 									{
 										printf("Checking adler32 ... ");
 
@@ -172,9 +172,20 @@ int main(int argc, const char * argv[])
 										{
 											printf("OK (0x%08x)\n", OSSwapInt32(prelinkHeader->adler32));
 										}
+										
+										if (!strncmp(argv[3], "kernel", 6))
+										{
+											printf("Extracting kernel ...\n");
+											saveKernel(workSpaceBuffer);
+										}
 									}
-
-									fwrite(workSpaceBuffer, 1, compressedSize, fp);
+									else
+									{
+										printf("Decoding data ...\nWriting data to: %s\n", argv[3]);
+										fwrite(workSpaceBuffer, 1, compressedSize, fp);
+										printf("%ld bytes written\n", ftell(fp));
+										fclose(fp);
+									}
 								}
 							/* }
 							else
@@ -192,8 +203,6 @@ int main(int argc, const char * argv[])
 
 							free(workSpaceBuffer);
 
-							printf("%ld bytes written\n", ftell(fp));
-							fclose(fp);
 							printf("Done.\n");
 							exit(0);
 						}

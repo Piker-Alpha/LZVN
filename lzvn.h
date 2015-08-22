@@ -3,6 +3,11 @@
  * Filename.: lzvn.c
  * Author...: Pike R. Alpha
  * Purpose..: Command line tool to LZVN encode/decode a file.
+ *
+ * Updates:
+ *			- Prelinkedkerel check added (Pike R. Alpha, August 2015).
+ *			- Mach header injection for prelinkedkernels added (Pike R. Alpha, August 2015).
+ *			- Extract kernel option added (Pike R. Alpha, August 2015).
  */
 
 #include <stdio.h>
@@ -142,3 +147,71 @@ uint8_t is_prelinkedkernel(unsigned char * aFileBuffer)
 	return 0;
 }
 
+
+//==============================================================================
+
+uint8_t saveKernel(unsigned char * aFileBuffer)
+{
+	struct segment_command_64 * lastSegment			= NULL;
+	struct segment_command_64 *	prelinkTextSegment	= NULL;
+	struct segment_command_64 *	prelinkInfoSegment	= NULL;
+	struct segment_command_64 *	linkeditSegment		= NULL;
+
+	struct section_64 * prelinkTextSection			= NULL;
+	struct section_64 * prelinkInfoSection			= NULL;
+
+	struct mach_header_64 * machHeader = (struct mach_header_64 *)((unsigned char *)aFileBuffer);
+	
+	if ((lastSegment = find_segment_64(machHeader, "__LAST")) == NULL)
+	{
+		printf("ERROR: find_segment_64(\"__LAST\") failed!\n");
+		return -1;
+	}
+
+	if ((prelinkTextSegment = find_segment_64(machHeader, "__PRELINK_TEXT")) == NULL)
+	{
+		printf("ERROR: find_segment_64(\"__PRELINK_TEXT\") failed!\n");
+		return -1;
+	}
+
+	if ((prelinkInfoSegment = find_segment_64(machHeader, "__PRELINK_INFO")) == NULL)
+	{
+		printf("ERROR: find_segment_64(\"__PRELINK_INFO\") failed!\n");
+		return -1;
+	}
+
+	if ((linkeditSegment = find_segment_64(machHeader, SEG_LINKEDIT)) == NULL)
+	{
+		printf("ERROR: find_segment_64(\"__LINKEDIT\") failed!\n");
+		return -1;
+	}
+	
+	prelinkTextSegment->vmaddr = linkeditSegment->vmaddr;
+	prelinkTextSegment->vmsize = 0;
+	prelinkTextSegment->fileoff = (lastSegment->fileoff + lastSegment->filesize);
+	prelinkTextSegment->filesize = 0;
+
+	prelinkTextSection = (struct section_64 *)((uint64_t)prelinkTextSegment + sizeof(struct segment_command_64));
+
+	prelinkTextSection->addr = prelinkTextSegment->vmaddr;
+	prelinkTextSection->size = 0;
+	prelinkTextSection->offset = prelinkTextSegment->fileoff;
+		
+	prelinkInfoSegment->vmaddr = linkeditSegment->vmaddr;
+	prelinkInfoSegment->vmsize = 0;
+	prelinkInfoSegment->fileoff = (lastSegment->fileoff + lastSegment->filesize);
+	prelinkInfoSegment->filesize = 0;
+
+	prelinkInfoSection = (struct section_64 *)((uint64_t)prelinkInfoSegment + sizeof(struct segment_command_64));
+
+	prelinkInfoSection->addr = prelinkTextSegment->vmaddr;
+	prelinkInfoSection->size = 0;
+	prelinkInfoSection->offset = prelinkInfoSegment->fileoff;
+		
+	FILE *fp = fopen("kernel", "wb");
+	fwrite(aFileBuffer, 1, (long)(linkeditSegment->fileoff + linkeditSegment->filesize), fp);
+	printf("%ld bytes written\n", ftell(fp));
+	fclose(fp);
+	
+	return 0;
+}
