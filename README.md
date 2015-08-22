@@ -1,7 +1,7 @@
 LZVN
 ====
 
-You can download the source code and pre-compiled copies of libFastCompression.a and libFastCompression-Kernel.a with:
+You can download the source code of LZVN and pre-compiled copies of libFastCompression.a and libFastCompression-Kernel.a with:
 
 ``` sh
 curl -o LZVN.zip https://codeload.github.com/Piker-Alpha/LZVN/zip/master
@@ -45,7 +45,11 @@ Usage
 
 ```
 ./lzvn <uncompressed filename> <compressed filename>
+./lzvn -d <compressed filename> <uncompressed filename>
+./lzvn -d <path/prelinkedkernel> kernel
 ```
+
+The last option will extract the kernel from the given prelinkedkernel.
 
 
 Bugs
