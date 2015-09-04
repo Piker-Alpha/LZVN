@@ -11,6 +11,8 @@
  *			- Prelinkedkerel check added (Pike R. Alpha, August 2015).
  *			- Mach header injection for prelinkedkernels added (Pike R. Alpha, August 2015).
  *			- Extract kernel option added (Pike R. Alpha, August 2015).
+ *			- Extract dictionary option added (Pike R. Alpha, September 2015).
+ *			- Extract kexts option added (Pike R. Alpha, September 2015).
  */
 
 #include "lzvn.h"
@@ -44,6 +46,8 @@ int main(int argc, const char * argv[])
 		printf("Usage (encode): %s lzvn <infile> <outfile>\n", argv[0]);
 		printf("Usage (decode): %s lzvn -d <infile> <outfile>\n", argv[0]);
 		printf("Usage (decode): %s lzvn -d <path/prelinkedkernel> kernel\n", argv[0]);
+		printf("Usage (decode): %s lzvn -d <path/prelinkedkernel> dictionary\n", argv[0]);
+		printf("Usage (decode): %s lzvn -d <path/prelinkedkernel> kexts\n", argv[0]);
 		exit(-1);
 	}
 	else
@@ -129,83 +133,95 @@ int main(int argc, const char * argv[])
 						}
 					}
 
+					// printf("workSpaceSize: %ld \n", workSpaceSize);
+					workSpaceBuffer = malloc(workSpaceSize);
 
-					fp = fopen(argv[3], "wb");
-
-					if (fp == NULL)
+					if (workSpaceBuffer == NULL)
 					{
-						printf("Error: Opening of %s failed... exiting\nDone.\n", argv[3]);
+						printf("ERROR: Failed to allocate workSpaceBuffer ... exiting\nAborted!\n\n");
 						exit(-1);
 					}
 					else
 					{
-						// printf("workSpaceSize: %ld \n", workSpaceSize);
-						workSpaceBuffer = malloc(workSpaceSize);
+						/* if (workSpaceSize > 0x80000)
+						{ */
+							compressedSize = lzvn_decode(workSpaceBuffer, workSpaceSize, fileBuffer, fileLength);
 
-						if (workSpaceBuffer == NULL)
-						{
-							printf("ERROR: Failed to allocate workSpaceBuffer ... exiting\nAborted!\n\n");
-							exit(-1);
-						}
-						else
-						{
-							/* if (workSpaceSize > 0x80000)
-							{ */
-								compressedSize = lzvn_decode(workSpaceBuffer, workSpaceSize, fileBuffer, fileLength);
-
-								if (compressedSize > 0)
+							if (compressedSize > 0)
+							{
+								// Are we unpacking a prelinkerkernel?
+								if (is_prelinkedkernel(workSpaceBuffer))
 								{
-									// Are we unpacking a prelinkerkernel?
-									if (is_prelinkedkernel(workSpaceBuffer))
-									{
-										printf("Checking adler32 ... ");
+									printf("Checking adler32 ... ");
 
-										// Yes. Check adler32.
-										if (OSSwapInt32(prelinkHeader->adler32) != local_adler32(workSpaceBuffer, workSpaceSize))
+									// Yes. Check adler32.
+									if (OSSwapInt32(prelinkHeader->adler32) != local_adler32(workSpaceBuffer, workSpaceSize))
+									{
+										printf("ERROR: Adler32 mismatch!\n");
+										free(workSpaceBuffer);
+										fclose(fp);
+										exit(-1);
+									}
+									else
+									{
+										printf("OK (0x%08x)\n", OSSwapInt32(prelinkHeader->adler32));
+
+										// Do we need to write the _PrelinkInfoDictionary to disk?
+										if (strstr(argv[3], "dictionary") || strstr(argv[3], "kexts"))
 										{
-											printf("ERROR: Adler32 mismatch!\n");
-											free(workSpaceBuffer);
-											fclose(fp);
-											exit(-1);
+											printf("Extracting dictionary ...\n");
+											saveDictionary(workSpaceBuffer);
 										}
-										else
+
+										if (strstr(argv[3], "kexts"))
 										{
-											printf("OK (0x%08x)\n", OSSwapInt32(prelinkHeader->adler32));
+											printf("Extracting kexts ...\n");
+											saveKexts(workSpaceBuffer);
 										}
-										
-										if (!strncmp(argv[3], "kernel", 6))
+
+										// Do we need to write the kernel to disk?
+										if (strstr(argv[3], "kernel"))
 										{
 											printf("Extracting kernel ...\n");
 											saveKernel(workSpaceBuffer);
 										}
-									}
-									else
-									{
-										printf("Decoding data ...\nWriting data to: %s\n", argv[3]);
-										fwrite(workSpaceBuffer, 1, compressedSize, fp);
-										printf("%ld bytes written\n", ftell(fp));
-										fclose(fp);
+
+										if (gSaveAll)
+										{
+											openFile((char *)argv[3]);
+											printf("Decoding prelinkedkernel ...\nWriting data to: %s\n", argv[3]);
+											fwrite(workSpaceBuffer, 1, compressedSize, fp);
+											printf("%ld bytes written\n", ftell(fp));
+											fclose(fp);
+										}
 									}
 								}
-							/* }
-							else
-							{
-								while ((compressedSize = lzvn_decode(workSpaceBuffer, workSpaceSize, fileBuffer, fileLength)) > 0)
+								else
 								{
-									printf("compressedSize: %ld\n", compressedSize);
+									printf("Decoding data ...\nWriting data to: %s\n", argv[3]);
 									fwrite(workSpaceBuffer, 1, compressedSize, fp);
-									fileBuffer += workSpaceSize;
-									byteshandled += workSpaceSize;
+									printf("%ld bytes written\n", ftell(fp));
+									fclose(fp);
 								}
-							
-								fileBuffer -= byteshandled;
-							} */
+							}
+						/* }
+						else
+						{
+							while ((compressedSize = lzvn_decode(workSpaceBuffer, workSpaceSize, fileBuffer, fileLength)) > 0)
+							{
+								printf("compressedSize: %ld\n", compressedSize);
+								fwrite(workSpaceBuffer, 1, compressedSize, fp);
+								fileBuffer += workSpaceSize;
+								byteshandled += workSpaceSize;
+							}
+						
+							fileBuffer -= byteshandled;
+						} */
 
-							free(workSpaceBuffer);
+						free(workSpaceBuffer);
 
-							printf("Done.\n");
-							exit(0);
-						}
+						printf("\nDone.\n");
+						exit(0);
 					}
 				}
 			}

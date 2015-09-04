@@ -16,6 +16,7 @@ INSTALL=install
 ASFLAGS=-arch x86_64
 ARFLAGS=cru
 CFLAGS=-arch x86_64 -O2
+FRAMEWORKS=-framework IOKit -framework CoreFoundation
 
 all: clean lzvn
 
@@ -30,7 +31,7 @@ libFastCompression.a: lzvn_encode.o lzvn_decode.o
 	$(RANLIB) libFastCompression.a
 
 lzvn: lzvn.o libFastCompression.a
-	$(CC) $(CFLAGS) -o $@ lzvn.o -L. -lFastCompression
+	$(CC) $(CFLAGS) -o $@ lzvn.o -L. -lFastCompression $(FRAMEWORKS)
 
 clean:
 	clear
