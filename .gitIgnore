@@ -4,5 +4,7 @@
 *.a
 lzvn
 Backup
+Dictionary.plist
+kernel
 kexts
 Prelinkedkernel*

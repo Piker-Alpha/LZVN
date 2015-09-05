@@ -13,6 +13,9 @@
  *			- Extract kernel option added (Pike R. Alpha, August 2015).
  *			- Extract dictionary option added (Pike R. Alpha, September 2015).
  *			- Extract kexts option added (Pike R. Alpha, September 2015).
+ *			– Function find_load_command() added (Pike R. Alpha, September 2015).
+ *			- Save Dictionary.plist in proper XML format.
+ *			- Show number of signed and unsigned kexts.
  */
 
 #include "lzvn.h"

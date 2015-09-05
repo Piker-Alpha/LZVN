@@ -10,6 +10,9 @@
  *			- Extract kernel option added (Pike R. Alpha, August 2015).
  *			- Extract dictionary option added (Pike R. Alpha, September 2015).
  *			- Extract kexts option added (Pike R. Alpha, September 2015).
+ *			– Function find_load_command() added (Pike R. Alpha, September 2015).
+ *			- Save Dictionary.plist in proper XML format.
+ *			- Show number of signed and unsigned kexts.
  */
 
 #include <stdio.h>
@@ -102,6 +105,31 @@ u_int32_t local_adler32(u_int8_t * buffer, int32_t length)
 	result = (highHalf << 16) | lowHalf;
 	
 	return result;
+}
+
+
+//==============================================================================
+
+struct load_command * find_load_command(struct mach_header_64 *machHeader, uint32_t targetCmd)
+{
+	struct load_command *loadCommand;
+	
+	// First LOAD_COMMAND begins after the mach header.
+	loadCommand = (struct load_command *)((uint64_t)machHeader + sizeof(struct mach_header_64));
+	
+	while ((uint64_t)loadCommand < (uint64_t)machHeader + (uint64_t)machHeader->sizeofcmds + sizeof(struct mach_header_64))
+	{
+		if (loadCommand->cmd == targetCmd)
+		{
+			return (struct load_command *)loadCommand;
+		}
+		
+		// Next load command.
+		loadCommand = (struct load_command *)((uint64_t)loadCommand + (uint64_t)loadCommand->cmdsize);
+	}
+	
+	// Return NULL on failure (not found).
+	return NULL;
 }
 
 
@@ -243,10 +271,28 @@ uint8_t saveDictionary(unsigned char * aFileBuffer)
 		return -1;
 	}
 
-	FILE *fp = fopen("Dictionary.plist", "wb");
-	fwrite(aFileBuffer + (uint64_t)prelinkInfoSegment->fileoff, 1, (long)(prelinkInfoSegment->filesize), fp);
-	printf("%ld bytes written\n", ftell(fp));
-	fclose(fp);
+	const char * prelinkInfoBytes = (const char *)aFileBuffer + prelinkInfoSegment->fileoff;
+	
+	CFPropertyListRef prelinkInfoPlist = (CFPropertyListRef)IOCFUnserialize(prelinkInfoBytes, kCFAllocatorDefault, /* options */ 0, /* errorString */ NULL);
+	
+	if (prelinkInfoPlist)
+	{
+		printf("NOTICE: Unserialized _PrelinkInfoDictionary\n");
+
+		CFErrorRef xmlError = NULL;
+		CFDataRef xmlData = CFPropertyListCreateData(kCFAllocatorDefault, prelinkInfoPlist, kCFPropertyListXMLFormat_v1_0, 0, &xmlError);
+	
+		if (xmlError == NULL)
+		{
+			const unsigned char * buffer = CFDataGetBytePtr(xmlData);
+			long xmlLength = CFDataGetLength(xmlData);
+			
+			FILE *fp = fopen("Dictionary.plist", "w");
+			fwrite(buffer, 1, xmlLength, fp);
+			printf("%ld bytes written\n", ftell(fp));
+			fclose(fp);
+		}
+	}
 	
 	gSaveAll = FALSE;
 
@@ -305,9 +351,12 @@ int _mkdir(char * aDirectory, mode_t aMode)
 
 uint8_t saveKexts(unsigned char * aFileBuffer)
 {
+	int signedKexts = 0;
+
 	struct segment_command_64 *	prelinkTextSegment	= NULL;
 	struct segment_command_64 *	prelinkInfoSegment	= NULL;
 	struct mach_header_64 * machHeader = (struct mach_header_64 *)((unsigned char *)aFileBuffer);
+	struct linkedit_data_command *codeSignature	= NULL;
 
 	prelinkTextSegment = find_segment_64(machHeader, "__PRELINK_TEXT");
 	prelinkInfoSegment = find_segment_64(machHeader, "__PRELINK_INFO");
@@ -427,6 +476,15 @@ uint8_t saveKexts(unsigned char * aFileBuffer)
 						printf("_PrelinkExecutableSize........: 0x%llx/%lld\n", sourceSize, sourceSize);
 					}
 
+					machHeader = (struct mach_header_64 *)((unsigned char *)(uint64_t)aFileBuffer + offset);
+					codeSignature = (struct linkedit_data_command *)find_load_command(machHeader, LC_CODE_SIGNATURE);
+					
+					if (codeSignature)
+					{
+						printf("Signed kext...................: Yes\n");
+						signedKexts++;
+					}
+
 					if (offset && sourceSize)
 					{
 						char executablePath[PATH_MAX];
@@ -461,6 +519,8 @@ uint8_t saveKexts(unsigned char * aFileBuffer)
 					printf("ERROR: Failed to convert/write Info.plist\n");
 				}
 			}
+
+			printf("\n%ld kexts extracted (%d signed and %ld unsigned)\n", kextCount, signedKexts, (kextCount - signedKexts));
 		}
 		else
 		{
