@@ -47,9 +47,13 @@ Usage
 ./lzvn <uncompressed filename> <compressed filename>
 ./lzvn -d <compressed filename> <uncompressed filename>
 ./lzvn -d <path/prelinkedkernel> kernel
+./lzvn -d <path/prelinkedkernel> dictionary
+./lzvn -d <path/prelinkedkernel> kexts
 ```
 
-The last option will extract the kernel from the given prelinkedkernel.
+The third option will extract the kernel from the given prelinkedkernel.
+The fourth option will extract the dictionary containg the Info.plist of all kexts.
+The last option will extract all kexts in its current format, saved in subdirectory with the name kexts.
 
 
 Bugs
