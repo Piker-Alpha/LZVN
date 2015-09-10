@@ -356,7 +356,7 @@ uint8_t saveKexts(unsigned char * aFileBuffer)
 	struct segment_command_64 *	prelinkTextSegment	= NULL;
 	struct segment_command_64 *	prelinkInfoSegment	= NULL;
 	struct mach_header_64 * machHeader = (struct mach_header_64 *)((unsigned char *)aFileBuffer);
-	struct linkedit_data_command *codeSignature	= NULL;
+	struct linkedit_data_command *codeSignature		= NULL;
 
 	prelinkTextSegment = find_segment_64(machHeader, "__PRELINK_TEXT");
 	prelinkInfoSegment = find_segment_64(machHeader, "__PRELINK_INFO");
