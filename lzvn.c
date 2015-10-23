@@ -184,7 +184,7 @@ int main(int argc, const char * argv[])
 										}
 
 										// Do we need to write the kernel to disk?
-										if (strstr(argv[3], "kernel"))
+										if (strcmp(argv[3], "kernel") == 0)
 										{
 											printf("Extracting kernel ...\n");
 											saveKernel(workSpaceBuffer);
