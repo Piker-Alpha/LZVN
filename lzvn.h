@@ -539,6 +539,71 @@ uint8_t saveKexts(unsigned char * aFileBuffer)
 
 //==============================================================================
 
+uint8_t listKexts(unsigned char * aFileBuffer)
+{
+	struct segment_command_64 *	prelinkTextSegment	= NULL;
+	struct segment_command_64 *	prelinkInfoSegment	= NULL;
+	struct mach_header_64 * machHeader = (struct mach_header_64 *)((unsigned char *)aFileBuffer);
+	struct linkedit_data_command *codeSignature		= NULL;
+	
+	prelinkTextSegment = find_segment_64(machHeader, "__PRELINK_TEXT");
+	prelinkInfoSegment = find_segment_64(machHeader, "__PRELINK_INFO");
+	
+	if (prelinkTextSegment && prelinkInfoSegment)
+	{
+		const char * prelinkInfoBytes = (const char *)aFileBuffer + prelinkInfoSegment->fileoff;
+		
+		CFPropertyListRef prelinkInfoPlist = (CFPropertyListRef)IOCFUnserialize(prelinkInfoBytes, kCFAllocatorDefault, /* options */ 0, /* errorString */ NULL);
+		
+		if (prelinkInfoPlist)
+		{
+			printf("NOTICE: Unserialized prelink info\n");
+			
+			CFArrayRef kextPlistArray = NULL;
+			kextPlistArray = (CFArrayRef)CFDictionaryGetValue(prelinkInfoPlist, CFSTR("_PrelinkInfoDictionary"));
+			CFIndex i = 0;
+			CFIndex kextCount = CFArrayGetCount(kextPlistArray);
+			printf("kextCount: %ld\n", kextCount);
+			
+			char kextIdentifierBuffer[64];	// KMOD_MAX_NAME = 64
+			char kextBundlePathBuffer[PATH_MAX];
+			char kextPath[PATH_MAX];
+			char kextPlistPath[PATH_MAX];
+			char kextExecutablePath[PATH_MAX];
+			
+			struct stat st = {0};
+			
+			for (i = 0; i < kextCount; i++)
+			{
+				CFDictionaryRef kextPlist = (CFDictionaryRef)CFArrayGetValueAtIndex(kextPlistArray, i);
+				CFStringRef bundlePath = (CFStringRef)CFDictionaryGetValue(kextPlist, CFSTR(kPrelinkBundlePathKey));
+				
+				if (bundlePath)
+				{
+					CFStringGetCString(bundlePath, kextBundlePathBuffer, sizeof(kextBundlePathBuffer), kCFStringEncodingUTF8);
+					printf("%s\n", kextBundlePathBuffer);
+				}
+			}
+		}
+		else
+		{
+			printf("ERROR: Can't unserialize _PrelinkInfoDictionary!\n");
+			return -1;
+		}
+	}
+	else
+	{
+		printf("ERROR: find_segment_64(\"__PRELINK_TEXT/__PRELINK_INFO\") failed!\n");
+		return -1;
+	}
+	
+	gSaveAll = FALSE;
+	
+	return 0;
+}
+
+//==============================================================================
+
 void openFile(char * aFilename)
 {
 	FILE * fp = fopen(aFilename, "wb");

@@ -16,7 +16,8 @@
  *			– Function find_load_command() added (Pike R. Alpha, September 2015).
  *			- Save Dictionary.plist in proper XML format.
  *			- Show number of signed and unsigned kexts.
-  *			- Usage now shows 'lzvn' once.
+ *			- Usage now shows 'lzvn' once.
+ *			- Show list of kexts added (Pike R. Alpha, Januari 2016).
  */
 
 #include "lzvn.h"
@@ -52,6 +53,7 @@ int main(int argc, const char * argv[])
 		printf("Usage (decode): lzvn -d <path/prelinkedkernel> kernel\n");
 		printf("Usage (decode): lzvn -d <path/prelinkedkernel> dictionary\n");
 		printf("Usage (decode): lzvn -d <path/prelinkedkernel> kexts\n");
+		printf("Usage (decode): lzvn -d <path/prelinkedkernel> list\n");
 		exit(-1);
 	}
 	else
@@ -182,7 +184,13 @@ int main(int argc, const char * argv[])
 											printf("Extracting kexts ...\n");
 											saveKexts(workSpaceBuffer);
 										}
-
+										
+										if (strstr(argv[3], "list"))
+										{
+											printf("Getting list of kexts ...\n");
+											listKexts(workSpaceBuffer);
+										}
+										
 										// Do we need to write the kernel to disk?
 										if (strcmp(argv[3], "kernel") == 0)
 										{

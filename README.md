@@ -49,11 +49,13 @@ Usage
 ./lzvn -d <path/prelinkedkernel> kernel
 ./lzvn -d <path/prelinkedkernel> dictionary
 ./lzvn -d <path/prelinkedkernel> kexts
+./lzvn -d <path/prelinkedkernel> list
 ```
 
-The third option will extract the kernel from the given prelinkedkernel.
-The fourth option will extract the dictionary containg the Info.plist of all kexts.
-The last option will extract all kexts in its current format, saved in subdirectory with the name kexts.
+The kernel argument will extract the kernel from the given prelinkedkernel.
+The dictionary argument will extract the dictionary containing the Info.plist of all kexts.
+The kexts argument will extract all kexts to a ./kexts folder.
+The list argument will show a list of all the included kexts.
 
 
 Bugs
@@ -64,4 +66,3 @@ All possible bugs (so called 'issues') should be filed at:
 https://github.com/Piker-Alpha/LZVN/issues
 
 Please do **not** use my blog for this. Thank you!
-
