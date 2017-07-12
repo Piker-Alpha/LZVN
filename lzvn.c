@@ -18,6 +18,7 @@
  *			- Show number of signed and unsigned kexts.
  *			- Usage now shows 'lzvn' once.
  *			- Show list of kexts added (Pike R. Alpha, Januari 2016).
+ *			- Fixed encoding of files with a FAT header (Pike R. Alpha, July 2017).
  */
 
 #include "lzvn.h"
