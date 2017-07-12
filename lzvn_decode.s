@@ -234,6 +234,7 @@ L_0x2b7:
 	ret
 
 .data
+.align 8
 Lzvn_decode.opcode_table:
 .quad L_0x056
 .quad L_0x056
