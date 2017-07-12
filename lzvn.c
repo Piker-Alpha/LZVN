@@ -37,13 +37,15 @@ int main(int argc, const char * argv[])
 	PrelinkedKernelHeader * prelinkHeader	= NULL;
 	struct fat_header * fatHeader			= NULL;
 	struct fat_arch   * fatArch				= NULL;
-
+	
+	unsigned int offset						= 0;
+	
 	unsigned long fileLength				= 0;
 	unsigned long byteshandled				= 0;
 	unsigned long file_adler32				= 0;
 	unsigned long buffer_adler32			= 0;
 
-	size_t compressedSize							= 0;
+	size_t compressedSize					= 0;
 	size_t workSpaceSize					= 0;
 
 	if (argc < 3 || argc > 4)
@@ -91,7 +93,7 @@ int main(int argc, const char * argv[])
 					fread(fileBuffer, fileLength, 1, fp);
 					fclose(fp);
 
-					// Check for prelinked kernel
+					// Check for a FAT header.
 					fatHeader = (struct fat_header *) fileBuffer;
 
 					if (fatHeader->magic == FAT_CIGAM)
@@ -293,11 +295,20 @@ int main(int argc, const char * argv[])
 						}
 						else
 						{
-							file_adler32 = local_adler32(fileBuffer, fileLength);
+							// Check for a FAT header.
+							fatHeader = (struct fat_header *) fileBuffer;
+							
+							if (fatHeader->magic == FAT_CIGAM)
+							{
+								fatArch = (struct fat_arch *)(fileBuffer + sizeof(fatHeader));
+								offset = OSSwapInt32(fatArch->offset);
+							}
+							
+							file_adler32 = local_adler32((fileBuffer + offset), fileLength);
 							printf("adler32......: 0x%08lx\n", file_adler32);
 
 
-							size_t outSize = lzvn_encode(workSpaceBuffer, workSpaceSize, (u_int8_t *)fileBuffer, (size_t)fileLength, workSpace);
+							size_t outSize = lzvn_encode(workSpaceBuffer, workSpaceSize, (u_int8_t *)(fileBuffer + offset), (size_t)fileLength, workSpace);
 							printf("outSize......: %ld/0x%08lx\n", outSize, outSize);
 
 							free(workSpace);
@@ -311,7 +322,7 @@ int main(int argc, const char * argv[])
 								fp = fopen (argv[2], "wb");
 
 								// Do we need to inject the mach header?
-								if (is_prelinkedkernel(fileBuffer))
+								if (is_prelinkedkernel(fileBuffer + offset))
 								{
 									printf("Fixing file header for prelinkedkernel ...\n");
 
